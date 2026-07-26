@@ -1,0 +1,139 @@
+﻿FUNCTION_BLOCK "PartCounter"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      sensor : Bool;
+      stop : Bool;
+      start : Bool;
+      reset : Bool;
+      eStopOk : Bool;
+   END_VAR
+
+   VAR_OUTPUT 
+      convOut : Bool;
+      redLamp : Bool;
+      greenLamp : Bool;
+      yellowLamp : Bool;
+      levelLamp : Bool;
+   END_VAR
+
+   VAR RETAIN
+      step : Int;
+   END_VAR
+   VAR 
+      counter1 {InstructionName := 'CTU_INT'; LibVersion := '1.0'} : CTU_INT;
+   END_VAR
+   VAR RETAIN
+      timer1 {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+   END_VAR
+   VAR 
+      timerStep : Bool;
+      startEdge {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
+      stopEdge {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
+      resetEdge {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
+      running : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      partDetected : Bool;
+      startPressed : Bool;
+      stopPressed : Bool;
+      counterResetPressed : Bool;
+   END_VAR
+
+
+BEGIN
+	(*
+	   STATE MACHINE
+	   0    IDLE      — start bekle
+	   20   RUNNING   — konveyör çalışıyor, parça sayıyor
+	   30   SETTLE    — 1 sn bekleme (son parça yerleşsin)
+	   40   FULL      — reset bekle
+	   404  STOPPED   — acil çıkış, sayaç sıfırla, IDLE'a dön
+	*)
+	
+	IF NOT #eStopOk THEN
+	    #running := FALSE;
+	    #step := 990;
+	END_IF;
+	IF #stopEdge.Q THEN
+	    #running := FALSE;
+	    #step := 0;
+	END_IF;
+	
+	
+	// IO Normal
+	#partDetected := NOT #sensor;
+	#startPressed := #start;
+	#stopPressed := NOT #stop;
+	#counterResetPressed := #reset;
+	
+	
+	//counter and timer def
+	#counter1(CU:= #partDetected, R:=#resetEdge.Q, PV:=5);
+	#timer1(IN := #timerStep,PT := T#1000ms);
+	#startEdge(CLK := #startPressed);
+	#stopEdge(CLK := #stopPressed);
+	#resetEdge(CLK := #counterResetPressed);
+	
+	
+	
+	// main flow
+	CASE #step OF
+	        
+	        
+	    0:
+	        IF (#startEdge.Q) THEN
+	            #running := TRUE;
+	            #step := 20;
+	        END_IF;
+	        
+	    20:
+	        IF #counter1.QU THEN
+	            #timerStep := 1;
+	            IF #timer1.Q THEN
+	                #running := FALSE;
+	                #step := 30;
+	            END_IF;
+	        END_IF;
+	
+	        
+	    30:
+	        
+	        RESET_TIMER(#timer1);
+	        #timerStep := 0;
+	        #step := 40;
+	        
+	    40:
+	        IF #resetEdge.Q THEN
+	            #step := 0;
+	        END_IF;
+	        
+	    990: //eStop Step
+	        IF #eStopOk AND #resetEdge.Q THEN
+	            #step := 0;
+	        END_IF;
+	        
+	        ;
+	        
+	    ELSE
+	        #step := 0;
+	        ;
+	END_CASE;
+	
+	// out states 
+	#convOut := (#running);
+	#greenLamp := (#step=20);
+	#yellowLamp := (#step = 40);
+	#levelLamp := (#step = 40);
+	#redLamp := (#step = 990);
+	
+	
+	
+	
+	
+	
+	
+	
+END_FUNCTION_BLOCK
+
