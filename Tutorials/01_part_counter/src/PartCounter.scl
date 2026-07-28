@@ -17,13 +17,12 @@ VERSION : 0.1
       levelLamp : Bool;
    END_VAR
 
-   VAR RETAIN
-      step : Int;
+   VAR_IN_OUT 
+      st : "station";
    END_VAR
-   VAR 
-      counter1 {InstructionName := 'CTU_INT'; LibVersion := '1.0'} : CTU_INT;
-   END_VAR
+
    VAR RETAIN
+      part_counter {InstructionName := 'CTU_INT'; LibVersion := '1.0'} : CTU_INT;
       timer1 {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
    END_VAR
    VAR 
@@ -31,7 +30,6 @@ VERSION : 0.1
       startEdge {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
       stopEdge {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
       resetEdge {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
-      running : Bool;
    END_VAR
 
    VAR_TEMP 
@@ -53,12 +51,12 @@ BEGIN
 	*)
 	
 	IF NOT #eStopOk THEN
-	    #running := FALSE;
-	    #step := 990;
+	    #st.status.running := FALSE;
+	    #st.status.step := 990;
 	END_IF;
 	IF #stopEdge.Q THEN
-	    #running := FALSE;
-	    #step := 0;
+	    #st.status.running := FALSE;
+	    #st.status.step  := 0;
 	END_IF;
 	
 	
@@ -70,30 +68,31 @@ BEGIN
 	
 	
 	//counter and timer def
-	#counter1(CU:= #partDetected, R:=#resetEdge.Q, PV:=5);
+	#part_counter(CU:= #partDetected, R:=#resetEdge.Q, PV:=#st.data.target);
 	#timer1(IN := #timerStep,PT := T#1000ms);
 	#startEdge(CLK := #startPressed);
 	#stopEdge(CLK := #stopPressed);
 	#resetEdge(CLK := #counterResetPressed);
 	
+	#st.data.count := #part_counter.CV;
 	
 	
 	// main flow
-	CASE #step OF
+	CASE  #st.status.step  OF
 	        
 	        
 	    0:
-	        IF (#startEdge.Q) THEN
-	            #running := TRUE;
-	            #step := 20;
+	        IF (#startEdge.Q AND #st.cmd.enable) THEN
+	            #st.status.running := TRUE;
+	            #st.status.step  := 20;
 	        END_IF;
 	        
 	    20:
-	        IF #counter1.QU THEN
+	        IF #part_counter.QU THEN
 	            #timerStep := 1;
 	            IF #timer1.Q THEN
-	                #running := FALSE;
-	                #step := 30;
+	                #st.status.running := FALSE;
+	                #st.status.step  := 30;
 	            END_IF;
 	        END_IF;
 	
@@ -102,31 +101,33 @@ BEGIN
 	        
 	        RESET_TIMER(#timer1);
 	        #timerStep := 0;
-	        #step := 40;
+	        #st.status.step  := 40;
 	        
 	    40:
 	        IF #resetEdge.Q THEN
-	            #step := 0;
+	            #st.status.step  := 0;
 	        END_IF;
 	        
 	    990: //eStop Step
 	        IF #eStopOk AND #resetEdge.Q THEN
-	            #step := 0;
+	            #st.status.step  := 0;
 	        END_IF;
 	        
 	        ;
 	        
 	    ELSE
-	        #step := 0;
+	        #st.status.step  := 0;
 	        ;
 	END_CASE;
 	
 	// out states 
-	#convOut := (#running);
-	#greenLamp := (#step=20);
-	#yellowLamp := (#step = 40);
-	#levelLamp := (#step = 40);
-	#redLamp := (#step = 990);
+	#convOut := (#st.status.running);
+	#greenLamp := ( #st.status.step =20);
+	#yellowLamp := ( #st.status.step  = 40);
+	#levelLamp := ( #st.status.step  = 40);
+	#redLamp := ( #st.status.step  = 990);
+	
+	#st.status.full := (#st.status.step = 40);
 	
 	
 	
