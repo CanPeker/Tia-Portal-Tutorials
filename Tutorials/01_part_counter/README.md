@@ -36,47 +36,47 @@ Her istasyon aynı state machine'i çalıştırır:
 
 Tek bir Function Block (`PartCounter`) tanımlanır ve **iki ayrı Instance DB** ile çağrılır — kopyalama yok, tek kod tabanı. Her istasyonun mantıksal verisi (durum, sayaç, komut, hata) bir **UDT** (`stStation`) içinde tutulur. Fiziksel IO parametre olarak, mantıksal durum UDT üzerinden (InOut) geçer. İstasyonlar arası koordinasyon FB'nin dışında, OB1 katmanında yapılır — FB kendi istasyonundan başkasını bilmez.
 
-\`\`\`
+```
 OB1 (orkestrasyon + koordinasyon)
- ├── PartCounter  [Instance DB 1] ── st -> station1   (UDT)
- ├── PartCounter  [Instance DB 2] ── st -> station2   (UDT)
- └── koordinasyon: station2.enable := station1.full
+ |-- PartCounter  [Instance DB 1] -- st -> station1  (UDT)
+ |-- PartCounter  [Instance DB 2] -- st -> station2  (UDT)
+ +-- koordinasyon: station2.enable := station1.full
 
-PartCounter (FB) — tek tanim, cok ornek
- ├── IO normalizasyonu (NC sinyaller Temp'te tek yerde cevrilir)
- ├── sayac (Static) -> sonuc UDT'ye (st.data.count)
- ├── edge yakalama (Static: start / stop / reset)
- └── CASE state machine -> cikislar durumdan turetilir
-\`\`\`
+PartCounter (FB) -- tek tanim, cok ornek
+ |-- IO normalizasyonu (NC sinyaller Temp'te tek yerde cevrilir)
+ |-- sayac (Static) -> sonuc UDT'ye (st.data.count)
+ |-- edge yakalama (Static: start / stop / reset)
+ +-- CASE state machine -> cikislar durumdan turetilir
+```
 
-### Veri Modeli — \`stStation\` (UDT)
+### Veri Modeli — `stStation` (UDT)
 
-\`\`\`
+```
 stStation
-├── cmd     (komut — disaridan istasyona)
-│   └── enable        : Bool     # baslama izni
-├── status  (durum — istasyondan disariya)
-│   ├── running       : Bool
-│   ├── full          : Bool
-│   └── step          : Int
-└── data    (veri)
-    ├── count         : Int      # sayilan parca
-    └── target        : Int      # hedef (disaridan ayarlanabilir)
-\`\`\`
+ |-- cmd     (komut -- disaridan istasyona)
+ |    +-- enable      : Bool     # baslama izni
+ |-- status  (durum -- istasyondan disariya)
+ |    |-- running     : Bool
+ |    |-- full        : Bool
+ |    +-- step        : Int
+ +-- data    (veri)
+      |-- count       : Int      # sayilan parca
+      +-- target      : Int      # hedef (disaridan ayarlanabilir)
+```
 
 Fiziksel IO ve geçici ara sinyaller UDT'ye **konmaz** — sayaç/timer/edge mekanizması FB'nin Static'inde, geçici sinyaller Temp'te yaşar. UDT yalnızca dışa açık, anlamlı veri taşır.
 
 ### State Machine
 
-\`\`\`
-        [ IDLE ] --start+enable--> [ RUNNING ] --hedef--> [ SETTLE ]
-           ^                                                  |
-           |                                              +1sn|
-           |                  reset                     [ FULL ]
-           +---------------------------------------------- ...
+```
+   [IDLE] --start+enable--> [RUNNING] --hedef--> [SETTLE]
+     ^                                              |
+     |                                          +1sn|
+     |               reset                      [FULL]
+     +------------------------------------------- <-+
 
-        E-STOP: her durumdan --> [ ESTOP ] --(E-stop birak + reset)--> IDLE
-\`\`\`
+   E-STOP: her durumdan --> [ESTOP] --(E-stop birak + reset)--> IDLE
+```
 
 | Step | Durum | Aksiyon |
 |---|---|---|
@@ -92,18 +92,18 @@ Fiziksel IO ve geçici ara sinyaller UDT'ye **konmaz** — sayaç/timer/edge mek
 
 | Sinyal | Tip | Kontak | Açıklama |
 |---|---|---|---|
-| \`start\` | DI | NO | Başlat butonu |
-| \`stop\` | DI | NC | Durdur butonu |
-| \`reset\` | DI | NO | Reset / onay butonu |
-| \`eStopOk\` | DI | NC | Acil durdurma (fail-safe) |
-| \`sensor\` | DI | NC | Parça sensörü |
-| \`convOut\` | DQ | — | Konveyör motoru |
-| \`greenLamp\` | DQ | — | Çalışıyor göstergesi |
-| \`yellowLamp\` | DQ | — | Bekleme göstergesi |
-| \`redLamp\` | DQ | — | E-stop göstergesi |
-| \`levelLamp\` | DQ | — | Dolu göstergesi |
+| `start` | DI | NO | Başlat butonu |
+| `stop` | DI | NC | Durdur butonu |
+| `reset` | DI | NO | Reset / onay butonu |
+| `eStopOk` | DI | NC | Acil durdurma (fail-safe) |
+| `sensor` | DI | NC | Parça sensörü |
+| `convOut` | DQ | — | Konveyör motoru |
+| `greenLamp` | DQ | — | Çalışıyor göstergesi |
+| `yellowLamp` | DQ | — | Bekleme göstergesi |
+| `redLamp` | DQ | — | E-stop göstergesi |
+| `levelLamp` | DQ | — | Dolu göstergesi |
 
-Her istasyon kendi IO setini kullanır (\`_1\` / \`_2\` sonekli tag'ler).
+Her istasyon kendi IO setini kullanır (`_1` / `_2` sonekli tag'ler).
 
 > **Güvenlik notu:** E-stop, stop ve parça sensörü **NC** (normally closed) bağlıdır. Kablo kopması veya besleme kaybı sinyali düşürür ve sistemi güvenli tarafa iter (fail-safe). Bu bilinçli bir tasarım tercihidir.
 
@@ -112,14 +112,14 @@ Her istasyon kendi IO setini kullanır (\`_1\` / \`_2\` sonekli tag'ler).
 ## Tasarım Kararları
 
 - **Tek FB, çoklu Instance DB.** İkinci istasyon için kod kopyalanmaz; aynı FB ikinci bir Instance DB ile çağrılır. Bir class'tan iki obje türetmek gibi — ortak kod, ayrı state.
-- **UDT ile veri modelleme.** İstasyon verisi \`stStation\` UDT'sinde toplanır; fiziksel IO ve geçici sinyaller dışarıda tutulur. UDT yalnızca dışa açık, anlamlı durum taşır.
+- **UDT ile veri modelleme.** İstasyon verisi `stStation` UDT'sinde toplanır; fiziksel IO ve geçici sinyaller dışarıda tutulur. UDT yalnızca dışa açık, anlamlı durum taşır.
 - **Koordinasyon FB'nin dışında.** İstasyonlar arası bağ (biri dolmadan diğeri başlamaz) OB1 katmanında kurulur. FB kendi istasyonundan başkasını bilmez — bu yeniden kullanılabilirliği korur.
 - **SCL, ladder değil.** Mantık yazılım mühendisliği disipliniyle yazıldı — okunabilir, diff'lenebilir, versiyonlanabilir.
-- **IO normalizasyonu tek yerde.** NC sinyallerin \`NOT\` çevrimi bloğun başında yapılır; mantık kodunda hiç \`NOT\` yoktur.
+- **IO normalizasyonu tek yerde.** NC sinyallerin `NOT` çevrimi bloğun başında yapılır; mantık kodunda hiç `NOT` yoktur.
 - **Self-holding çalışma.** Konveyör, start'a bir kez basınca mühürlenir; stop veya E-stop bunu ezer.
 - **E-stop CASE dışında, koşulsuz.** Her çevrim en başta kontrol edilir — hangi state'te olursa olsun yakalanır.
 - **E-stop'tan çıkış otomatik değil.** İnsan onayı (reset) zorunludur.
-- **Çıkışlar durumdan türetilir.** \`convOut := running\`, lambalar \`step\` değerinden.
+- **Çıkışlar durumdan türetilir.** `convOut := running`, lambalar `step` değerinden.
 
 ---
 
@@ -131,34 +131,34 @@ Her istasyon kendi IO setini kullanır (\`_1\` / \`_2\` sonekli tag'ler).
 
 ## Nasıl Çalıştırılır
 
-1. \`tia_project/PartCounter.zap15\` dosyasını TIA Portal V15'te **Project → Retrieve** ile aç.
+1. `tia_project/PartCounter.zap15` dosyasını TIA Portal V15'te **Project -> Retrieve** ile aç.
 2. Projeyi derle, S7-PLCSIM'e yükle, CPU'yu RUN'a al.
 3. NetToPLCsim'i başlat, PLC'yi ekle (127.0.0.1), server'ı başlat.
-4. \`factoryio/part_counter.factoryio\` sahnesini Factory IO'da aç, S7-PLCSIM driver'ıyla bağla.
+4. `factoryio/part_counter.factoryio` sahnesini Factory IO'da aç, S7-PLCSIM driver'ıyla bağla.
 5. İstasyon 1'de Start'a bas — konveyör çalışır, parça sayar. Dolunca istasyon 2 başlatılabilir.
 
 ---
 
 ## Dosya Yapısı
 
-\`\`\`
+```
 01_part_counter/
-├── README.md
-├── src/
-│   └── PartCounter.scl          # okunabilir kaynak kod
-├── tia_project/
-│   └── PartCounter.zap15        # TIA Portal arsivi (Retrieve ile ac)
-├── factoryio/
-│   └── part_counter.factoryio   # Factory IO sahnesi
-└── media/
-    └── PartCounter.mp4          # demo videosu
-\`\`\`
+ |-- README.md
+ |-- src/
+ |    +-- PartCounter.scl          # okunabilir kaynak kod
+ |-- tia_project/
+ |    +-- PartCounter.zap15        # TIA Portal arsivi (Retrieve ile ac)
+ |-- factoryio/
+ |    +-- part_counter.factoryio   # Factory IO sahnesi
+ +-- media/
+      +-- PartCounter.mp4          # demo videosu
+```
 
 ---
 
 ## Kaynak Kod
 
-Tam SCL için: [\`src/PartCounter.scl\`](src/PartCounter.scl)
+Tam SCL için: [`src/PartCounter.scl`](src/PartCounter.scl)
 
 ---
 
