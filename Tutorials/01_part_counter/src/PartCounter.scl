@@ -77,6 +77,8 @@ BEGIN
 	#st.data.count := #part_counter.CV;
 	
 	
+	
+	
 	// main flow
 	CASE  #st.status.step  OF
 	        
@@ -101,6 +103,7 @@ BEGIN
 	        
 	        RESET_TIMER(#timer1);
 	        #timerStep := 0;
+	        #st.data.totalCount := #st.data.totalCount + #st.data.count;
 	        #st.status.step  := 40;
 	        
 	    40:
@@ -109,6 +112,7 @@ BEGIN
 	        END_IF;
 	        
 	    990: //eStop Step
+	      
 	        IF #eStopOk AND #resetEdge.Q THEN
 	            #st.status.step  := 0;
 	        END_IF;
@@ -129,7 +133,9 @@ BEGIN
 	
 	#st.status.full := (#st.status.step = 40);
 	
+	#st.status.ready := #st.status.step = 0;
 	
+	#st.status.eStop := #st.status.step = 990;
 	
 	
 	

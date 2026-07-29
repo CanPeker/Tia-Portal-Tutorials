@@ -1,0 +1,43 @@
+﻿ORGANIZATION_BLOCK "Main"
+TITLE = "Main Program Sweep (Cycle)"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+BEGIN
+	REGION Factory_IO
+	    // Get inputs from factory io 
+	    
+	    "factoryIO_com"();
+	    
+	END_REGION
+	
+	
+	"CellControl"();
+	
+	"PartCounter_DB"(sensor := "sensor1_NC",
+	                 stop := "stopButton_NC",
+	                 start := "startButton",
+	                 reset := "resetButton",
+	                 eStopOk := "eStopButton_NC",
+	                 st := "StationData_DB".station1,
+	                 convOut => "conv",
+	                 redLamp => "stackLight_Red",
+	                 greenLamp => "stackLight_Green",
+	                 yellowLamp => "stackLight_Yellow",
+	                 levelLamp => "full_level");
+	
+	"PartCounter_DB_2"(sensor := "sensor2_NC",
+	                   stop := "stopButton_NC_2",
+	                   start := "startButton_2",
+	                   reset := "resetButton_NC_2",
+	                   eStopOk := "eStopButton_NC",
+	                   convOut => "conv2",
+	                   redLamp => "stackLight_Red_2",
+	                   greenLamp => "stackLight_Green_2",
+	                   yellowLamp => "stackLight_Yellow_2",
+	                   levelLamp => "full_level_2",
+	                   st := "StationData_DB".station2);
+	
+	
+END_ORGANIZATION_BLOCK
+

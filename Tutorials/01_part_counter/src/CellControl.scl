@@ -1,0 +1,20 @@
+﻿FUNCTION "CellControl" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+BEGIN
+	
+	REGION handShake
+	    // st1 and st2 handshake
+	    "StationData_DB".station2.cmd.enable := "StationData_DB".station1.status.full;
+	END_REGION
+	
+	"CellData".anyRunning := "StationData_DB".station1.status.running OR "StationData_DB".station2.status.running;
+	
+	"CellData".totalCount := "StationData_DB".station1.data.totalCount + "StationData_DB".station2.data.totalCount;
+	
+	"CellData".allReady := "StationData_DB".station1.status.ready AND "StationData_DB".station2.status.ready;
+	
+	"CellData".eStopOK := NOT "StationData_DB".station1.status.eStop AND NOT "StationData_DB".station2.status.eStop;
+END_FUNCTION
+
